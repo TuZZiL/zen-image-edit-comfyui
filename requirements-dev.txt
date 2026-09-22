@@ -3,3 +3,6 @@
 #   pip install torch --index-url https://download.pytorch.org/whl/cpu
 -r requirements.txt
 pytest>=8
+# safetensors.torch.save_file() needs numpy to write a safetensors file,
+# which tests/test_loader_happy_path.py does to build a real adapter fixture.
+numpy

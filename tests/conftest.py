@@ -35,6 +35,12 @@ class _Port:
 class _Spec:
     """Stand-in for a schema/port factory (``io.String``, ``io.Custom``, ...)."""
 
+    # io.Autogrow.Type is used as a runtime type annotation in the node signature.
+    # Python 3.14 defers annotation evaluation (PEP 649) so it is never read there,
+    # but 3.12 (the CI interpreter) evaluates it at class-creation time. Define it
+    # so the stub does not pass locally and fail on CI.
+    Type = object
+
     def __init__(self, *args, **kwargs):
         pass
 
