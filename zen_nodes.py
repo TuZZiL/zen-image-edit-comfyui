@@ -16,6 +16,7 @@ import glob
 import json
 import math
 import os
+from collections import OrderedDict
 
 import torch
 from typing_extensions import override
@@ -33,7 +34,7 @@ T2I_TEMPLATE = SYSTEM_PROMPT + "<|im_start|>user\n{}<|im_end|>\n<|im_start|>assi
 # Each cache entry pins the encoder (~1.7 GB) plus the fusion adapter (~0.6 GB) in VRAM.
 # Two is enough to compare configurations; more will not fit on a 12 GB card.
 _CACHE_MAX = 2
-_CACHE = {}
+_CACHE = OrderedDict()   # LRU: load_adapter moves hits to the end and evicts the front
 
 ENCODER_DOWNLOAD_HINT = (
     "hf download Qwen/Qwen3.5-0.8B --local-dir "
@@ -170,7 +171,7 @@ def validate_text_encoder(value):
     )
 
 
-def _load_fusion(source):
+def _device():
     try:
         return comfy.model_management.get_torch_device()
     except Exception:
