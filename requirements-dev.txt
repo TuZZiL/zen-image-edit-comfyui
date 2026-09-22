@@ -1,0 +1,5 @@
+# Dev/test dependencies. The suite stubs comfy*, so no GPU and no ComfyUI are needed.
+# On CI, install the CPU build of torch to keep the job small:
+#   pip install torch --index-url https://download.pytorch.org/whl/cpu
+-r requirements.txt
+pytest>=8

@@ -95,6 +95,76 @@ ComfyUI's own shift for 2.1 is **0.69** (its mu at 1024²). The diffusers build 
 plain static shift of **5.0**, which the model's author found clearly better — insert
 `ModelSamplingAuraFlow` with `shift = 5.0` to match it (that is what the example graphs do).
 
+## Troubleshooting
+
+Each message below replaces a raw exception that named neither the cause nor the fix. Every one of
+them was hit on a stock install (ComfyUI 0.37.0, RTX 3060, Windows) while setting this node up.
+
+### `adapter file not found: 'adapter_v11.safetensors'`
+
+`adapter_file` is resolved **against ComfyUI's working directory**, not against `models/`, so a
+relative value is the usual cause. Pass an absolute path:
+
+```
+<ComfyUI>/models/adapter_v11.safetensors
+```
+
+The loader now also searches ComfyUI's registered model folders (`folder_paths`) before giving up,
+so dropping the file in `models/` and passing a bare filename usually works too.
+
+### `text_encoder must be a DIRECTORY, but got a file: ...`
+
+`from_pretrained()` loads a *folder* (config.json + weights + tokenizer). Pointing it at a
+`.safetensors` path makes it treat the string as a Hugging Face repo id and raise
+`HFValidationError`; a folder that exists but has no weights gives
+`OSError: Error no file named model.safetensors, or pytorch_model.bin`. Pass the directory — or the
+repo id `Qwen/Qwen3.5-0.8B`.
+
+### `... has weight shards but no model.safetensors.index.json`
+
+`Qwen/Qwen3.5-0.8B` names its weights `model.safetensors-00001-of-00001.safetensors`. Without
+`model.safetensors.index.json`, `from_pretrained` cannot see them **even though the weights are
+present** — the download is simply incomplete. Finish it:
+
+```bash
+hf download Qwen/Qwen3.5-0.8B --local-dir <ComfyUI>/models/text_encoders/qwen3.5_0.8b
+```
+
+The directory needs `config.json`, `tokenizer_config.json`, the weight shard **and**
+`model.safetensors.index.json` (13 files in total).
+
+### `hf` itself fails: `TypeError: Typer.__init__() got an unexpected keyword argument 'suggest_commands'`
+
+The `typer` and `huggingface_hub` versions in the ComfyUI venv disagree — this breaks the `hf` CLI
+*before* any download, while the `huggingface_hub` **library** keeps working. Two ways out:
+
+1. Pass the repo id `Qwen/Qwen3.5-0.8B` as `text_encoder` and let `from_pretrained` fetch it.
+2. Download the missing files directly, bypassing the CLI:
+
+```powershell
+$b = "https://huggingface.co/Qwen/Qwen3.5-0.8B/resolve/main"
+$d = "<ComfyUI>\models\text_encoders\qwen3.5_0.8b"
+@("model.safetensors.index.json","tokenizer.json","vocab.json","merges.txt",
+  "preprocessor_config.json","video_preprocessor_config.json","chat_template.jinja") |
+  ForEach-Object { Invoke-WebRequest "$b/$_" -OutFile "$d\$_" }
+```
+
+### Switching configurations reloads the encoder
+
+The adapter cache is keyed by `(model_folder, text_encoder, adapter_file, dtype)` and holds at most
+**two** entries (~2.3 GB of VRAM each). Older entries are moved to CPU and freed on eviction, so
+cycling through more than two configurations in one session will thrash rather than OOM.
+
+## Tests
+
+```bash
+python3 -m pip install -r requirements-dev.txt
+python3 -m pytest
+```
+
+`tests/conftest.py` stubs `comfy*`, so the suite runs with **no ComfyUI, no GPU and no model
+weights** — it exercises the pure logic (metadata parsing, path resolution, encoder validation).
+
 ## Notes
 
 * **English only** — the adapter was trained and tested on English captions and instructions.

@@ -11,6 +11,7 @@ https://huggingface.co/AiArtLab/zen-image-edit.
 The DiT stays stock: its `txt_in` consumes exactly the tensor the fusion produces, so no unet
 weights need patching — point `UNETLoader` at the plain Qwen-Image-2.1 model.
 """
+import gc
 import glob
 import json
 import math
@@ -29,10 +30,147 @@ VISION_BLOCK = "<|vision_start|><|image_pad|><|vision_end|>"
 SYSTEM_PROMPT = "<|im_start|>system\nComprehend and analyze the provided prompt.<|im_end|>\n"
 T2I_TEMPLATE = SYSTEM_PROMPT + "<|im_start|>user\n{}<|im_end|>\n<|im_start|>assistant\n"
 
+# Each cache entry pins the encoder (~1.7 GB) plus the fusion adapter (~0.6 GB) in VRAM.
+# Two is enough to compare configurations; more will not fit on a 12 GB card.
+_CACHE_MAX = 2
 _CACHE = {}
 
+ENCODER_DOWNLOAD_HINT = (
+    "hf download Qwen/Qwen3.5-0.8B --local-dir "
+    "<ComfyUI>/models/text_encoders/qwen3.5_0.8b"
+)
 
-def _device():
+
+def resolve_adapter_path(value):
+    """Resolve `adapter_file` to a real path, or None.
+
+    `adapter_file` is handed straight to `safetensors.safe_open`, which resolves a
+    relative value against the *process* working directory — not against
+    `ComfyUI/models/`. Users reasonably expect the latter, so we try ComfyUI's
+    registered model folders before falling back to the working directory.
+    """
+    if not value:
+        return None
+    candidate = os.path.abspath(os.path.expanduser(value))
+    if os.path.isfile(candidate):
+        return candidate
+
+    if not os.path.isabs(value) and not value.startswith("."):
+        roots = []
+        try:  # ComfyUI only; absent in a bare test environment
+            import folder_paths
+            for key in ("safetensors", "text_encoders", "clip", "unet", "checkpoints", "loras"):
+                try:
+                    roots.extend(folder_paths.get_folder_paths(key) or [])
+                except Exception:
+                    continue
+            roots.append(folder_paths.models_dir)
+        except Exception:
+            pass
+
+        for root in roots:
+            for cand in (os.path.join(root, value), os.path.join(root, "..", value)):
+                cand = os.path.abspath(cand)
+                if os.path.isfile(cand):
+                    return cand
+
+    return None
+
+
+def _encoder_weights(directory):
+    """Classify the weights sitting in an encoder directory."""
+    entries = os.listdir(directory)
+    has_canonical = os.path.isfile(os.path.join(directory, "model.safetensors"))
+    has_bin = os.path.isfile(os.path.join(directory, "pytorch_model.bin"))
+    has_index = os.path.isfile(os.path.join(directory, "model.safetensors.index.json"))
+    shards = [e for e in entries if e.endswith(".safetensors") and e != "model.safetensors"]
+    return has_canonical, has_bin, has_index, shards
+
+
+def validate_text_encoder(value):
+    """Return (encoder, processor, tokenizer) paths, or explain what is wrong.
+
+    `from_pretrained` accepts either a directory or a Hugging Face repo id, and
+    fails at three different places depending on which mistake was made. All
+    three are turned into directed messages here, because the raw exceptions
+    (`HFValidationError`, `OSError: Error no file named model.safetensors...`)
+    name neither the cause nor the fix.
+    """
+    if not value or not str(value).strip():
+        raise ValueError(
+            "text_encoder is empty: set it to the encoder directory "
+            "(e.g. <ComfyUI>/models/text_encoders/qwen3.5_0.8b) or to the "
+            "Hugging Face id Qwen/Qwen3.5-0.8B"
+        )
+
+    raw = str(value).strip()
+    path = os.path.expanduser(raw)
+
+    if os.path.isdir(path):
+        missing = []
+        config = os.path.join(path, "config.json")
+        if not os.path.isfile(config):
+            missing.append("config.json")
+
+        has_canonical, has_bin, has_index, shards = _encoder_weights(path)
+
+        if not (has_canonical or has_bin or has_index):
+            if shards:
+                raise ValueError(
+                    f"text_encoder directory {path} has weight shards "
+                    f"({', '.join(sorted(shards)[:3])}) but no "
+                    "model.safetensors.index.json. Without the index, "
+                    "from_pretrained cannot see them and reports "
+                    "\"no file named model.safetensors, or pytorch_model.bin\". "
+                    "The download is incomplete — finish it with:\n"
+                    f"  {ENCODER_DOWNLOAD_HINT}"
+                )
+            raise ValueError(
+                f"text_encoder directory {path} contains no weights: expected "
+                "model.safetensors, pytorch_model.bin or a sharded "
+                "model.safetensors.index.json plus shards.\n"
+                f"Download them with:\n  {ENCODER_DOWNLOAD_HINT}"
+            )
+
+        if missing:
+            raise ValueError(
+                f"text_encoder directory {path} is missing {missing}. "
+                f"Download the full repo with:\n  {ENCODER_DOWNLOAD_HINT}"
+            )
+        return path, path, path
+
+    if os.path.isfile(path) or path.endswith((".safetensors", ".bin", ".pt", ".gguf")):
+        raise ValueError(
+            f"text_encoder must be a DIRECTORY, but got a file: {path}\n"
+            "from_pretrained() loads a folder (config.json + weights + tokenizer). "
+            "A file path makes it treat the string as a Hugging Face repo id and "
+            "raise HFValidationError, or fail with \"no file named model.safetensors\".\n"
+            "Pass the folder that contains config.json, e.g. "
+            "<ComfyUI>/models/text_encoders/qwen3.5_0.8b — or the repo id "
+            "Qwen/Qwen3.5-0.8B."
+        )
+
+    # A Hugging Face repo id: exactly "owner/name", no backslashes, and whose first
+    # segment is not a local directory. Do NOT test for a file extension here —
+    # real ids carry dots ("Qwen/Qwen3.5-0.8B"), and splitext mistakes ".5-0.8B"
+    # for one. The library downloads the id on first use.
+    looks_like_id = (
+        raw.count("/") == 1
+        and "\\" not in raw
+        and not raw.startswith(("/", ".", "~"))
+        and not os.path.isdir(raw.split("/")[0])
+    )
+    if looks_like_id:
+        return raw, raw, raw
+
+    raise ValueError(
+        f"text_encoder directory not found: {path}\n"
+        "Give either a directory or a Hugging Face id (owner/name). To fetch the "
+        f"encoder:\n  {ENCODER_DOWNLOAD_HINT}"
+    )
+
+
+def _load_fusion(source):
     try:
         return comfy.model_management.get_torch_device()
     except Exception:
@@ -83,10 +221,35 @@ def _load_fusion(source):
         prefix = "text_fusion."
         files = sorted(glob.glob(os.path.join(source, "*.safetensors")))
     else:
-        with safe_open(source, framework="pt") as handle:
-            config = _fusion_config(handle.metadata())
+        resolved = resolve_adapter_path(source)
+        if resolved is None:
+            tried = os.path.abspath(os.path.expanduser(source))
+            hint = ""
+            if not os.path.isabs(source):
+                hint = ("\nThis is a relative path: it resolves against the process "
+                        "working directory (" + os.getcwd() + "), NOT against "
+                        "ComfyUI/models/. Pass an absolute path.")
+            raise FileNotFoundError(
+                f"adapter file not found: '{source}'\n"
+                f"resolved to: {tried}\n"
+                "`adapter_file` must point at the adapter_v11.safetensors file "
+                "(0.6 GB, from the zen-image-edit release assets). Put it in "
+                "<ComfyUI>/models/ and pass the ABSOLUTE path to it." + hint
+            )
+        try:
+            with safe_open(resolved, framework="pt") as handle:
+                config = _fusion_config(handle.metadata())
+        except ValueError:
+            raise
+        except Exception as exc:
+            raise ValueError(
+                f"adapter file '{resolved}' could not be read as a safetensors "
+                f"adapter: {type(exc).__name__}: {exc}\n"
+                "Expected the adapter_v11.safetensors release asset (its config "
+                "lives in the safetensors metadata)."
+            ) from exc
         prefix = ""
-        files = [source]
+        files = [resolved]
     for shard in files:
         # per-tensor reads: only the adapter tensors, never the 14 GB DiT
         with safe_open(shard, framework="pt") as handle:
@@ -106,9 +269,13 @@ class ZenImage21Adapter:
         device = _device()
 
         local = bool(model_folder) and os.path.isdir(os.path.join(model_folder, "text_encoder"))
-        encoder = os.path.join(model_folder, "text_encoder") if local else text_encoder
-        processor_path = os.path.join(model_folder, "processor") if local else text_encoder
-        tokenizer_path = os.path.join(model_folder, "tokenizer") if local else text_encoder
+        if local:
+            encoder = os.path.join(model_folder, "text_encoder")
+            processor_path = os.path.join(model_folder, "processor")
+            tokenizer_path = os.path.join(model_folder, "tokenizer")
+        else:
+            # directed errors instead of HFValidationError / "no file named model.safetensors"
+            encoder, processor_path, tokenizer_path = validate_text_encoder(text_encoder)
         source = adapter_file or (os.path.join(model_folder, "transformer") if local else "")
         if not source:
             raise ValueError("set `adapter_file` (adapter_v12.safetensors) or `model_folder` "
@@ -167,11 +334,43 @@ class ZenImage21Adapter:
         return cond, inputs.input_ids[0].tolist()
 
 
+def _release(adapter):
+    """Drop one adapter out of VRAM before evicting it from the cache.
+
+    Every entry holds ~2.3 GB. Without this, changing any of the four cache-key
+    fields on a 12 GB card walks straight into OOM.
+    """
+    for attr in ("student", "fusion", "processor", "tokenizer"):
+        held = getattr(adapter, attr, None)
+        if held is None:
+            continue
+        try:
+            held.to("cpu")
+        except Exception:
+            pass
+    del adapter
+    gc.collect()
+    try:
+        comfy.model_management.soft_empty_cache()
+    except Exception:
+        pass
+
+
 def load_adapter(model_folder, dtype_name, text_encoder="models/text_encoders/qwen3.5_0.8b",
                  adapter_file=""):
     key = (os.path.abspath(model_folder or ""), text_encoder, adapter_file, dtype_name)
-    if key not in _CACHE:
-        _CACHE[key] = ZenImage21Adapter(model_folder, text_encoder, adapter_file, dtype_name)
+    cached = _CACHE.get(key)
+    if cached is not None:
+        _CACHE.move_to_end(key)
+        return cached
+
+    while len(_CACHE) >= _CACHE_MAX:
+        old_key = next(iter(_CACHE))
+        print(f"[zen-image-edit] evicting cached adapter for {old_key[-2]} "
+              f"(cache limit {_CACHE_MAX})", flush=True)
+        _release(_CACHE.pop(old_key))
+
+    _CACHE[key] = ZenImage21Adapter(model_folder, text_encoder, adapter_file, dtype_name)
     return _CACHE[key]
 
 
@@ -224,7 +423,9 @@ class ZenImage21AdapterLoader(io.ComfyNode):
                                         "its Hugging Face id and pass `fusion_file`."),
                 io.String.Input("adapter_file", default="",
                                 tooltip="Path to adapter_v12.safetensors (0.6 GB, config in metadata). "
-                                        "Required when `model_folder` is empty."),
+                                        "Required when `model_folder` is empty. Use an ABSOLUTE path: "
+                                        "a relative one resolves against ComfyUI's working directory, "
+                                        "not against models/."),
                 io.String.Input("text_encoder", default="models/text_encoders/qwen3.5_0.8b",
                                 tooltip="Text encoder id or path, used when `model_folder` is empty."),
                 io.Combo.Input("dtype", options=["bf16", "fp16"], default="bf16",
