@@ -167,7 +167,8 @@ class ZenImage21Adapter:
         return cond, inputs.input_ids[0].tolist()
 
 
-def load_adapter(model_folder, dtype_name, text_encoder="Qwen/Qwen3.5-0.8B", adapter_file=""):
+def load_adapter(model_folder, dtype_name, text_encoder="models/text_encoders/qwen3.5_0.8b",
+                 adapter_file=""):
     key = (os.path.abspath(model_folder or ""), text_encoder, adapter_file, dtype_name)
     if key not in _CACHE:
         _CACHE[key] = ZenImage21Adapter(model_folder, text_encoder, adapter_file, dtype_name)
@@ -224,7 +225,7 @@ class ZenImage21AdapterLoader(io.ComfyNode):
                 io.String.Input("adapter_file", default="",
                                 tooltip="Path to adapter_v11.safetensors (0.6 GB, config in metadata). "
                                         "Required when `model_folder` is empty."),
-                io.String.Input("text_encoder", default="Qwen/Qwen3.5-0.8B",
+                io.String.Input("text_encoder", default="models/text_encoders/qwen3.5_0.8b",
                                 tooltip="Text encoder id or path, used when `model_folder` is empty."),
                 io.Combo.Input("dtype", options=["bf16", "fp16"], default="bf16",
                                tooltip="Keep bf16 to match the DiT; fp16 reproduces the diffusers build."),
@@ -233,7 +234,7 @@ class ZenImage21AdapterLoader(io.ComfyNode):
         )
 
     @classmethod
-    def execute(cls, model_folder="", adapter_file="", text_encoder="Qwen/Qwen3.5-0.8B",
+    def execute(cls, model_folder="", adapter_file="", text_encoder="models/text_encoders/qwen3.5_0.8b",
                 dtype="bf16") -> io.NodeOutput:
         return io.NodeOutput(load_adapter(model_folder, dtype, text_encoder, adapter_file))
 
