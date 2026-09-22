@@ -32,6 +32,16 @@ VAE, sampler and the prefix KV cache stay stock ComfyUI.
    ```
 6. Restart ComfyUI. Needs `transformers >= 5.17` (Qwen3.5 support) — ComfyUI ships a compatible one.
 
+## Examples
+
+Two character references in, three scenes out — all from this node, in ComfyUI, 768×1280:
+
+![examples](examples/melim_collage.jpg)
+
+The reference images are the model author's own character; each scene used the same two references
+with a different prompt and seed. `examples/t2i_api.json` and `examples/edit_api.json` are the graphs
+themselves (API format, both verified end-to-end).
+
 ## Nodes
 
 **Zen Image Edit — Adapter Loader** — loads the encoder and the adapter once.
