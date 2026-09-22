@@ -25,7 +25,12 @@ VAE, sampler and the prefix KV cache stay stock ComfyUI.
 4. Put the stock model files into place, from [Comfy-Org/Qwen-Image-2.1](https://huggingface.co/Comfy-Org/Qwen-Image-2.1):
    `qwen_image_2.1_bf16.safetensors` → `models/diffusion_models/`,
    `qwen_image_2.1_vae_bf16.safetensors` → `models/vae/`.
-5. Restart ComfyUI. Needs `transformers >= 5.17` (Qwen3.5 support) — ComfyUI ships a compatible one.
+5. Download the text encoder (1.7 GB) — the shipped workflow points at that folder:
+
+   ```bash
+   hf download Qwen/Qwen3.5-0.8B --local-dir ComfyUI/models/text_encoders/qwen3.5_0.8b
+   ```
+6. Restart ComfyUI. Needs `transformers >= 5.17` (Qwen3.5 support) — ComfyUI ships a compatible one.
 
 ## Nodes
 
