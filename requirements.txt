@@ -1,0 +1,4 @@
+transformers>=5.17
+safetensors
+torch
+Pillow

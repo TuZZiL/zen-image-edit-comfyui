@@ -1,0 +1,99 @@
+{
+  "prompt": {
+    "1": {
+      "class_type": "ZenImage21AdapterLoader",
+      "inputs": {
+        "model_folder": "",
+        "adapter_file": "models/adapter_v11.safetensors",
+        "text_encoder": "Qwen/Qwen3.5-0.8B",
+        "dtype": "bf16"
+      }
+    },
+    "3": {
+      "class_type": "UNETLoader",
+      "inputs": {
+        "unet_name": "qwen_image_2.1_bf16.safetensors",
+        "weight_dtype": "default"
+      }
+    },
+    "4": {
+      "class_type": "ModelSamplingAuraFlow",
+      "inputs": {
+        "model": [
+          "3",
+          0
+        ],
+        "shift": 5.0
+      }
+    },
+    "5": {
+      "class_type": "VAELoader",
+      "inputs": {
+        "vae_name": "qwen_image_2.1_vae_bf16.safetensors"
+      }
+    },
+    "7": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": [
+          "6",
+          0
+        ],
+        "vae": [
+          "5",
+          0
+        ]
+      }
+    },
+    "2": {
+      "class_type": "ZenImage21TextEncode",
+      "inputs": {
+        "adapter": [
+          "1",
+          0
+        ],
+        "prompt": "a red fox in a snowy forest at dusk, cinematic, 85mm",
+        "negative_prompt": "",
+        "resolution": 1024
+      }
+    },
+    "6": {
+      "class_type": "KSampler",
+      "inputs": {
+        "model": [
+          "4",
+          0
+        ],
+        "positive": [
+          "2",
+          0
+        ],
+        "negative": [
+          "2",
+          1
+        ],
+        "latent_image": [
+          "2",
+          2
+        ],
+        "seed": 1234,
+        "steps": 30,
+        "cfg": 1.0,
+        "sampler_name": "euler",
+        "scheduler": "simple",
+        "denoise": 1.0
+      }
+    },
+    "8": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "images": [
+          "7",
+          0
+        ],
+        "filename_prefix": "zen_t2i"
+      }
+    }
+  },
+  "client_id": "zen-example"
+}
