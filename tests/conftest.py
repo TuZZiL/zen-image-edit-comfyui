@@ -60,6 +60,15 @@ class _Spec:
         return _Port()
 
 
+class _Schema:
+    """Remembers the schema kwargs so tests can assert on node_id/display_name."""
+
+    def __init__(self, **kwargs):
+        self.kwargs = kwargs
+        self.node_id = kwargs.get("node_id")
+        self.display_name = kwargs.get("display_name")
+
+
 class _ComfyNode:
     """Real class: nodes subclass it (``class Foo(io.ComfyNode)``)."""
 
@@ -75,7 +84,7 @@ class _IO(types.ModuleType):
 
     ComfyNode = _ComfyNode
     NodeOutput = _Spec
-    Schema = _Spec
+    Schema = _Schema
     String = _Spec
     Combo = _Spec
     Custom = _Spec

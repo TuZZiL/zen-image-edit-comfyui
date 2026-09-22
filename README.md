@@ -155,6 +155,36 @@ The adapter cache is keyed by `(model_folder, text_encoder, adapter_file, dtype)
 **two** entries (~2.3 GB of VRAM each). Older entries are moved to CPU and freed on eviction, so
 cycling through more than two configurations in one session will thrash rather than OOM.
 
+## Running this fork alongside the upstream node
+
+ComfyUI registers nodes by `node_id`, and the upstream repo claims
+`ZenImage21AdapterLoader` / `ZenImage21TextEncode`. Installing both copies
+unmodified means the second one loaded **silently replaces the first** in the
+node menu — you cannot tell which implementation a workflow is using.
+
+So this fork suffixes its ids by default (`NODE_SUFFIX = "Plus"`):
+
+```
+ZenImage21AdapterLoaderPlus      Zen Image Edit Plus — Adapter Loader
+ZenImage21TextEncodePlus         Zen Image Edit Plus — Text Encode
+```
+
+Install both and you get four distinct nodes, clearly labelled.
+
+If you run **only this copy**, clear the suffix to keep upstream-compatible ids
+(and existing workflows untouched):
+
+```bash
+# Linux / macOS
+export ZEN_NODE_SUFFIX=""
+
+# Windows (cmd)
+set ZEN_NODE_SUFFIX=
+```
+
+An empty suffix restores `ZenImage21AdapterLoader` / `ZenImage21TextEncode`
+exactly. Set it to any string to label a second or third checkout.
+
 ## Tests
 
 ```bash

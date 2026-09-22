@@ -27,6 +27,14 @@ from comfy_api.latest import ComfyExtension, io
 
 import fusion_lib
 
+# This fork ships suffixed node ids so it can be installed next to the upstream
+# `zen-image-edit-comfyui` in the same ComfyUI: node ids are the dictionary keys
+# ComfyUI registers on, and two customs nodes claiming the same key collide —
+# the second one silently replaces the first in the node menu.
+# Set ZEN_NODE_SUFFIX="" to get the upstream ids back (required if you only run
+# this copy, or when preparing an upstream pull request).
+NODE_SUFFIX = os.environ.get("ZEN_NODE_SUFFIX", "Plus")
+
 VISION_BLOCK = "<|vision_start|><|image_pad|><|vision_end|>"
 SYSTEM_PROMPT = "<|im_start|>system\nComprehend and analyze the provided prompt.<|im_end|>\n"
 T2I_TEMPLATE = SYSTEM_PROMPT + "<|im_start|>user\n{}<|im_end|>\n<|im_start|>assistant\n"
@@ -414,8 +422,9 @@ class ZenImage21AdapterLoader(io.ComfyNode):
     @classmethod
     def define_schema(cls) -> io.Schema:
         return io.Schema(
-            node_id="ZenImage21AdapterLoader",
-            display_name="Zen Image Edit — Adapter Loader (Qwen3.5-0.8B)",
+            node_id=f"ZenImage21AdapterLoader{NODE_SUFFIX}",
+            display_name=f"Zen Image Edit{NODE_SUFFIX and ' ' + NODE_SUFFIX} — "
+                         "Adapter Loader (Qwen3.5-0.8B)",
             category="model/conditioning/qwen image",
             inputs=[
                 io.String.Input("model_folder", default="",
@@ -445,8 +454,9 @@ class ZenImage21TextEncode(io.ComfyNode):
     @classmethod
     def define_schema(cls) -> io.Schema:
         return io.Schema(
-            node_id="ZenImage21TextEncode",
-            display_name="Zen Image Edit — Text Encode (Qwen3.5-0.8B)",
+            node_id=f"ZenImage21TextEncode{NODE_SUFFIX}",
+            display_name=f"Zen Image Edit{NODE_SUFFIX and ' ' + NODE_SUFFIX} — "
+                         "Text Encode (Qwen3.5-0.8B)",
             category="model/conditioning/qwen image",
             inputs=[
                 io.Custom("ZEN_ADAPTER").Input("adapter"),
