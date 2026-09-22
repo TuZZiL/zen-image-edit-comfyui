@@ -1,0 +1,566 @@
+{
+  "id": "5fd97041-b8e4-4f2b-8a11-d65fd3adaed5",
+  "revision": 0,
+  "last_node_id": 11,
+  "last_link_id": 12,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "ZenImage21AdapterLoader",
+      "pos": [
+        0,
+        40
+      ],
+      "size": [
+        270,
+        200
+      ],
+      "flags": {},
+      "order": 1,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "ZEN_ADAPTER",
+          "type": "ZEN_ADAPTER",
+          "links": [
+            1
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ZenImage21AdapterLoader"
+      },
+      "widgets_values": [
+        "",
+        "models/adapter_v11.safetensors",
+        "Qwen/Qwen3.5-0.8B",
+        "bf16"
+      ]
+    },
+    {
+      "id": 2,
+      "type": "ZenImage21TextEncode",
+      "pos": [
+        360,
+        40
+      ],
+      "size": [
+        430,
+        560
+      ],
+      "flags": {},
+      "order": 2,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "adapter",
+          "type": "ZEN_ADAPTER",
+          "link": 1
+        },
+        {
+          "name": "images",
+          "type": "COMFY_AUTOGROW_V3",
+          "link": null
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 12
+        },
+        {
+          "name": "image_1",
+          "type": "IMAGE",
+          "link": 10
+        },
+        {
+          "name": "image_2",
+          "type": "IMAGE",
+          "link": 11
+        }
+      ],
+      "outputs": [
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            4
+          ],
+          "slot_index": 0
+        },
+        {
+          "name": "CONDITIONING",
+          "type": "CONDITIONING",
+          "links": [
+            5
+          ],
+          "slot_index": 1
+        },
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            6
+          ],
+          "slot_index": 2
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ZenImage21TextEncode"
+      },
+      "widgets_values": [
+        "a red fox in a snowy forest at dusk, cinematic, 85mm",
+        "",
+        1024,
+        0,
+        0
+      ]
+    },
+    {
+      "id": 3,
+      "type": "UNETLoader",
+      "pos": [
+        0,
+        300
+      ],
+      "size": [
+        270,
+        200
+      ],
+      "flags": {},
+      "order": 4,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            2
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "UNETLoader"
+      },
+      "widgets_values": [
+        "qwen_image_2.1_bf16.safetensors",
+        "default"
+      ]
+    },
+    {
+      "id": 4,
+      "type": "ModelSamplingAuraFlow",
+      "pos": [
+        360,
+        300
+      ],
+      "size": [
+        270,
+        200
+      ],
+      "flags": {},
+      "order": 5,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 2
+        }
+      ],
+      "outputs": [
+        {
+          "name": "MODEL",
+          "type": "MODEL",
+          "links": [
+            3
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "ModelSamplingAuraFlow"
+      },
+      "widgets_values": [
+        5.0,
+        "flow"
+      ]
+    },
+    {
+      "id": 5,
+      "type": "VAELoader",
+      "pos": [
+        0,
+        520
+      ],
+      "size": [
+        270,
+        200
+      ],
+      "flags": {},
+      "order": 8,
+      "mode": 0,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "VAE",
+          "type": "VAE",
+          "links": [
+            8,
+            12
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAELoader"
+      },
+      "widgets_values": [
+        "qwen_image_2.1_vae_bf16.safetensors"
+      ]
+    },
+    {
+      "id": 6,
+      "type": "KSampler",
+      "pos": [
+        830,
+        40
+      ],
+      "size": [
+        270,
+        260
+      ],
+      "flags": {},
+      "order": 3,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "model",
+          "type": "MODEL",
+          "link": 3
+        },
+        {
+          "name": "positive",
+          "type": "CONDITIONING",
+          "link": 4
+        },
+        {
+          "name": "negative",
+          "type": "CONDITIONING",
+          "link": 5
+        },
+        {
+          "name": "latent_image",
+          "type": "LATENT",
+          "link": 6
+        }
+      ],
+      "outputs": [
+        {
+          "name": "LATENT",
+          "type": "LATENT",
+          "links": [
+            7
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "KSampler"
+      },
+      "widgets_values": [
+        1234,
+        "fixed",
+        30,
+        1.0,
+        "euler",
+        "simple",
+        1.0
+      ]
+    },
+    {
+      "id": 7,
+      "type": "VAEDecode",
+      "pos": [
+        830,
+        300
+      ],
+      "size": [
+        270,
+        200
+      ],
+      "flags": {},
+      "order": 6,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "samples",
+          "type": "LATENT",
+          "link": 7
+        },
+        {
+          "name": "vae",
+          "type": "VAE",
+          "link": 8
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            9
+          ],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "VAEDecode"
+      },
+      "widgets_values": []
+    },
+    {
+      "id": 8,
+      "type": "SaveImage",
+      "pos": [
+        1120,
+        300
+      ],
+      "size": [
+        270,
+        200
+      ],
+      "flags": {},
+      "order": 7,
+      "mode": 0,
+      "inputs": [
+        {
+          "name": "images",
+          "type": "IMAGE",
+          "link": 9
+        }
+      ],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [],
+          "slot_index": 0
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "SaveImage"
+      },
+      "widgets_values": [
+        "zen_image"
+      ]
+    },
+    {
+      "id": 9,
+      "type": "LoadImage",
+      "pos": [
+        0,
+        700
+      ],
+      "size": [
+        270,
+        200
+      ],
+      "flags": {},
+      "order": 9,
+      "mode": 2,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            10
+          ],
+          "slot_index": 0
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": [],
+          "slot_index": 1
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "example.png"
+      ],
+      "title": "scene.jpg  \u2192 image_1 = edit target"
+    },
+    {
+      "id": 10,
+      "type": "LoadImage",
+      "pos": [
+        0,
+        900
+      ],
+      "size": [
+        270,
+        200
+      ],
+      "flags": {},
+      "order": 10,
+      "mode": 2,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "IMAGE",
+          "type": "IMAGE",
+          "links": [
+            11
+          ],
+          "slot_index": 0
+        },
+        {
+          "name": "MASK",
+          "type": "MASK",
+          "links": [],
+          "slot_index": 1
+        }
+      ],
+      "properties": {
+        "Node name for S&R": "LoadImage"
+      },
+      "widgets_values": [
+        "example.png"
+      ],
+      "title": "reference.jpg \u2192 image_2 = reference"
+    },
+    {
+      "id": 11,
+      "type": "MarkdownNote",
+      "pos": [
+        -520,
+        40
+      ],
+      "size": [
+        470,
+        900
+      ],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "title": "zen-image-edit: install & usage",
+      "inputs": [],
+      "outputs": [],
+      "properties": {},
+      "widgets_values": [
+        "## zen-image-edit \u2014 Qwen-Image-2.1 on Qwen3.5-0.8B\n\nText-to-image **and** editing with the 0.8B encoder plus the adapter, instead of the native 17.5 GB\nQwen3-VL-8B. The DiT, VAE and sampler are stock ComfyUI.\n\n### What to download\n\n| file | where it goes | link |\n|---|---|---|\n| `adapter_v11.safetensors` (0.63 GB) | `ComfyUI/models/` | https://github.com/recoilme/zen-image-edit-comfyui/releases/download/v1/adapter_v11.safetensors |\n| `qwen_image_2.1_bf16.safetensors` (14.2 GB) | `ComfyUI/models/diffusion_models/` | https://huggingface.co/Comfy-Org/Qwen-Image-2.1 |\n| `qwen_image_2.1_vae_bf16.safetensors` (0.7 GB) | `ComfyUI/models/vae/` | https://huggingface.co/Comfy-Org/Qwen-Image-2.1 |\n\n```bash\ncd ComfyUI\ncurl -L -o models/adapter_v11.safetensors \\\n  https://github.com/recoilme/zen-image-edit-comfyui/releases/download/v1/adapter_v11.safetensors\n```\n\nThe encoder itself (`Qwen/Qwen3.5-0.8B`, 1.7 GB) is fetched by the loader on first run.\nNeeds ComfyUI with Qwen-Image-2.1 support (`comfy/ldm/qwen_image21/model.py`) and `transformers >= 5.17`.\n\n### Text to image\n\nLeave `image_1 \u2026` empty (they are optional) and run. `cfg = 1`, `euler`, 25\u201340 steps.\n\n### Editing\n\nUn-mute the two `LoadImage` nodes (Ctrl+M), point them at your files, then:\n\n* `image_1` \u2014 the **edit target** (pose, background and clothing come from here);\n* `image_2 \u2026` \u2014 references;\n* mention them in the prompt as `<image1>`, `<image2>` \u2014 words like \"the first image\" do not work.\n\nThe VAE must be connected to the text-encode node: the DiT splices reference images in as latents.\n\n### Scheduler\n\n`ModelSamplingAuraFlow` is set to **shift 5.0** \u2014 that is the schedule the diffusers build of this\nmodel ships (ComfyUI's own default for 2.1 is 0.69). Lower it back to 1.0\u20131.7 if you want to compare.\n\n### Limits\n\nEnglish prompts only; numerals on signage can come out wrong (\"OPEN 24 HOURS\" \u2192 \"OPEN 26 HOURS\").\n"
+      ],
+      "color": "#232",
+      "bgcolor": "#000"
+    }
+  ],
+  "links": [
+    [
+      1,
+      1,
+      0,
+      2,
+      0,
+      "ZEN_ADAPTER"
+    ],
+    [
+      2,
+      3,
+      0,
+      4,
+      0,
+      "MODEL"
+    ],
+    [
+      3,
+      4,
+      0,
+      6,
+      0,
+      "MODEL"
+    ],
+    [
+      4,
+      2,
+      0,
+      6,
+      1,
+      "CONDITIONING"
+    ],
+    [
+      5,
+      2,
+      1,
+      6,
+      2,
+      "CONDITIONING"
+    ],
+    [
+      6,
+      2,
+      2,
+      6,
+      3,
+      "LATENT"
+    ],
+    [
+      7,
+      6,
+      0,
+      7,
+      0,
+      "LATENT"
+    ],
+    [
+      8,
+      5,
+      0,
+      7,
+      1,
+      "VAE"
+    ],
+    [
+      9,
+      7,
+      0,
+      8,
+      0,
+      "IMAGE"
+    ],
+    [
+      10,
+      9,
+      0,
+      2,
+      3,
+      "IMAGE"
+    ],
+    [
+      11,
+      10,
+      0,
+      2,
+      4,
+      "IMAGE"
+    ],
+    [
+      12,
+      5,
+      0,
+      2,
+      2,
+      "VAE"
+    ]
+  ],
+  "groups": [],
+  "config": {},
+  "extra": {},
+  "version": 0.4
+}

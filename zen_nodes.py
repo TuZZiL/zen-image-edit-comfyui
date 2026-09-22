@@ -254,6 +254,11 @@ class ZenImage21TextEncode(io.ComfyNode):
                              tooltip="Reference images are resized to about resolution x resolution "
                                      "pixels at multiples of 32. 0 keeps their own size. The VAE is "
                                      "required for reference images: the DiT takes them as latents."),
+                io.Int.Input("width", default=0, min=0, max=4096, step=32,
+                             tooltip="Canvas width, 0 = take it from the first reference image. Keep it "
+                                     "close to that image's resized size or the edit can shift."),
+                io.Int.Input("height", default=0, min=0, max=4096, step=32,
+                             tooltip="Canvas height, 0 = take it from the first reference image."),
                 io.Autogrow.Input(
                     "images",
                     template=io.Autogrow.TemplateNames(
@@ -273,8 +278,9 @@ class ZenImage21TextEncode(io.ComfyNode):
         )
 
     @classmethod
-    def execute(cls, adapter, prompt, negative_prompt, vae=None, resolution=1024,
+    def execute(cls, adapter, prompt, negative_prompt, vae=None, resolution=1024, width=0, height=0,
                 images: io.Autogrow.Type = None, **kwargs) -> io.NodeOutput:
+        canvas_w, canvas_h = width, height      # the loop below reuses `width`/`height` for the refs
         # the loader may hand the expanded autogrow inputs over as separate `image_1`, `image_2`, ...
         # keyword arguments instead of the `images` dict, accept both
         images = dict(images or {})
@@ -310,6 +316,8 @@ class ZenImage21TextEncode(io.ComfyNode):
             refs.append(_to_pil(rgb))
             sizes.append((width, height))
 
+        if canvas_w >= 32 and canvas_h >= 32:
+            latent_w, latent_h = canvas_w, canvas_h
         positive = _condition(adapter, prompt, refs, sizes, ref_latents, keep_vision=vae is None)
         negative = _condition(adapter, negative_prompt or "", refs, sizes, ref_latents, keep_vision=vae is None)
         latent = torch.zeros([1, 64, latent_h // 16, latent_w // 16],
