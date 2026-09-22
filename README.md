@@ -16,8 +16,12 @@ VAE, sampler and the prefix KV cache stay stock ComfyUI.
 
 1. **Update ComfyUI** — it needs Qwen-Image-2.1 support (`comfy/ldm/qwen_image21/model.py` must exist).
 2. Copy this folder into `ComfyUI/custom_nodes/zen-image-edit-comfyui/` (or `git clone` it there).
-3. Download **`adapter_v11.safetensors`** (0.6 GB) from
-   [Releases](https://github.com/recoilme/zen-image-edit-comfyui/releases) into `ComfyUI/models/`.
+3. Download **`adapter_v11.safetensors`** (0.63 GB) into `ComfyUI/models/`:
+
+   ```bash
+   curl -L -o ComfyUI/models/adapter_v11.safetensors \
+     https://github.com/recoilme/zen-image-edit-comfyui/releases/download/v1/adapter_v11.safetensors
+   ```
 4. Put the stock model files into place, from [Comfy-Org/Qwen-Image-2.1](https://huggingface.co/Comfy-Org/Qwen-Image-2.1):
    `qwen_image_2.1_bf16.safetensors` → `models/diffusion_models/`,
    `qwen_image_2.1_vae_bf16.safetensors` → `models/vae/`.
