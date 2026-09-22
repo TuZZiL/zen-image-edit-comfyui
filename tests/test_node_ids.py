@@ -9,9 +9,15 @@ This fork therefore suffixes its ids, so both copies can live in one ComfyUI.
 Setting `ZEN_NODE_SUFFIX=""` restores the upstream ids for anyone running this
 copy alone (and for an upstream pull request).
 """
-import importlib
+import os
+import subprocess
+import sys
+from pathlib import Path
 
 import zen_nodes
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
+TESTS_DIR = REPO_ROOT / "tests"
 
 
 def _ids():
@@ -32,17 +38,30 @@ def test_node_ids_are_suffixed_by_default():
     assert encode_id.endswith(zen_nodes.NODE_SUFFIX)
 
 
-def test_suffix_can_be_cleared_for_a_single_install(monkeypatch):
-    monkeypatch.setenv("ZEN_NODE_SUFFIX", "")
-    importlib.reload(zen_nodes)
-    try:
-        adapter_id, encode_id = _ids()
+def test_suffix_can_be_cleared_for_a_single_install():
+    """ZEN_NODE_SUFFIX="" restores the upstream ids.
 
-        assert adapter_id == "ZenImage21AdapterLoader"
-        assert encode_id == "ZenImage21TextEncode"
-    finally:
-        monkeypatch.undo()
-        importlib.reload(zen_nodes)
+    Run in a subprocess on purpose: reloading the module in-process would either
+    depend on test ordering or leak a mutated module into sibling tests.
+    """
+    probe = (
+        "import sys;"
+        f"sys.path.insert(0, {str(TESTS_DIR)!r});"
+        f"sys.path.insert(0, {str(REPO_ROOT)!r});"
+        "import conftest;"          # installs the comfy stub
+        "import zen_nodes;"
+        "print(zen_nodes.ZenImage21AdapterLoader.define_schema().node_id);"
+        "print(zen_nodes.ZenImage21TextEncode.define_schema().node_id)"
+    )
+    env = dict(os.environ, ZEN_NODE_SUFFIX="")
+
+    result = subprocess.run([sys.executable, "-c", probe], capture_output=True,
+                            text=True, env=env, cwd=str(REPO_ROOT))
+
+    assert result.returncode == 0, result.stderr
+    lines = result.stdout.strip().splitlines()
+    assert lines == ["ZenImage21AdapterLoader", "ZenImage21TextEncode"], (
+        f"an empty suffix must restore the upstream ids, got {lines}")
 
 
 def test_display_names_differ_from_upstream():
