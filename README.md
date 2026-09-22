@@ -77,6 +77,12 @@ Ready-made graphs, both verified end-to-end through the ComfyUI API:
   `image_2 …` (references), and mention them in the prompt as `<image1>`, `<image2>`. The VAE is
   required: the DiT splices the references in as latents.
 
+  **Order matters, and it flips between runtimes.** Here — as in the stock `TextEncodeQwenImage21` —
+  the target is `image_1` and the canvas is taken from it. The diffusers pipeline of this model takes
+  the target from the *last* image. Reuse a prompt from the other side without swapping the pictures
+  and you get a hybrid instead of a swap: the source image becomes the canvas and the model only mixes
+  the face in (the usual "it does not replace anything" symptom).
+
 ### Scheduler
 
 ComfyUI's own shift for 2.1 is **0.69** (its mu at 1024²). The diffusers build of this model ships a
