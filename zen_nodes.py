@@ -42,7 +42,7 @@ def _device():
 def _fusion_config(meta):
     """Fusion config out of safetensors metadata.
 
-    Understands both the adapter file (`adapter_v11.safetensors`: comma-separated `student_layers`,
+    Understands both the adapter file (`adapter_v12.safetensors`: comma-separated `student_layers`,
     `attn_max_len`, no `mixer_ffn`/`drop_idx`) and a packed `text_fusion` file (JSON list, `max_len`).
     """
     cfg = {}
@@ -111,7 +111,7 @@ class ZenImage21Adapter:
         tokenizer_path = os.path.join(model_folder, "tokenizer") if local else text_encoder
         source = adapter_file or (os.path.join(model_folder, "transformer") if local else "")
         if not source:
-            raise ValueError("set `adapter_file` (adapter_v11.safetensors) or `model_folder` "
+            raise ValueError("set `adapter_file` (adapter_v12.safetensors) or `model_folder` "
                              "(a zen-image-edit checkout)")
         config, state = _load_fusion(source)
 
@@ -223,7 +223,7 @@ class ZenImage21AdapterLoader(io.ComfyNode):
                                         "tokenizer/, transformer/). Leave empty to load the encoder by "
                                         "its Hugging Face id and pass `fusion_file`."),
                 io.String.Input("adapter_file", default="",
-                                tooltip="Path to adapter_v11.safetensors (0.6 GB, config in metadata). "
+                                tooltip="Path to adapter_v12.safetensors (0.6 GB, config in metadata). "
                                         "Required when `model_folder` is empty."),
                 io.String.Input("text_encoder", default="models/text_encoders/qwen3.5_0.8b",
                                 tooltip="Text encoder id or path, used when `model_folder` is empty."),

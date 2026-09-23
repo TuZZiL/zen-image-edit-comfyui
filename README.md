@@ -8,7 +8,7 @@ VAE, sampler and the prefix KV cache stay stock ComfyUI.
 | | |
 |---|---|
 | text encoder | Qwen3.5-0.8B (1.7 GB, fetched by id) + adapter (0.6 GB) |
-| conditioning | cos **1.0000** against the diffusers build, **0.94** against the native Qwen3-VL-8B |
+| conditioning | cos **1.0000** against the diffusers build of the same folder; **0.95** (text) / **0.97** (vision, edit prompts) against the native Qwen3-VL-8B |
 | DiT / VAE | stock Qwen-Image-2.1, no patching |
 | limitations | English only; numerals on signage can be wrong |
 
@@ -16,12 +16,18 @@ VAE, sampler and the prefix KV cache stay stock ComfyUI.
 
 1. **Update ComfyUI** — it needs Qwen-Image-2.1 support (`comfy/ldm/qwen_image21/model.py` must exist).
 2. Copy this folder into `ComfyUI/custom_nodes/zen-image-edit-comfyui/` (or `git clone` it there).
-3. Download **`adapter_v11.safetensors`** (0.63 GB) into `ComfyUI/models/`:
+3. Download **`adapter_v12.safetensors`** (0.64 GB) into `ComfyUI/models/`:
 
    ```bash
-   curl -L -o ComfyUI/models/adapter_v11.safetensors \
-     https://github.com/recoilme/zen-image-edit-comfyui/releases/download/v1/adapter_v11.safetensors
+   curl -L -o ComfyUI/models/adapter_v12.safetensors \
+     https://github.com/recoilme/zen-image-edit-comfyui/releases/download/v2/adapter_v12.safetensors
    ```
+
+   v12 is the current revision: its attention-branch position table covers 2304 slots and it was
+   fine-tuned at the real 1024 px edit geometry, so long reference sequences no longer lose their
+   positions (vision cosine against the native encoder 0.93 → 0.97). `adapter_v11.safetensors` stays
+   on the [v1 release](https://github.com/recoilme/zen-image-edit-comfyui/releases/tag/v1) and still
+   loads — the node reads the architecture, including the table width, from the file metadata.
 4. Put the stock model files into place, from [Comfy-Org/Qwen-Image-2.1](https://huggingface.co/Comfy-Org/Qwen-Image-2.1):
    `qwen_image_2.1_bf16.safetensors` → `models/diffusion_models/`,
    `qwen_image_2.1_vae_bf16.safetensors` → `models/vae/`.
@@ -48,7 +54,7 @@ themselves (API format, both verified end-to-end).
 
 | input | meaning |
 |---|---|
-| `adapter_file` | path to `adapter_v11.safetensors` (architecture is in its metadata) |
+| `adapter_file` | path to `adapter_v12.safetensors` (architecture, including the position-table width, is in its metadata) |
 | `text_encoder` | encoder id or path, default `Qwen/Qwen3.5-0.8B` |
 | `model_folder` | optional: a zen-image-edit checkout, then the encoder and adapter come from there |
 | `dtype` | `bf16` (matches the DiT) or `fp16` (reproduces the diffusers build) |

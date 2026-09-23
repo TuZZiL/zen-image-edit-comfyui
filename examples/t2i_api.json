@@ -4,7 +4,7 @@
       "class_type": "ZenImage21AdapterLoader",
       "inputs": {
         "model_folder": "",
-        "adapter_file": "models/adapter_v11.safetensors",
+        "adapter_file": "models/adapter_v12.safetensors",
         "text_encoder": "Qwen/Qwen3.5-0.8B",
         "dtype": "bf16"
       }
