@@ -26,10 +26,18 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 
 
 class _Port:
-    """Stand-in for an io node port (``io.Image.Input(...)`` and friends)."""
+    """Stand-in for an io node port (``io.Image.Input(...)`` and friends).
+
+    Keeps the kwargs so tests can assert on the schema (``options`` for a Combo,
+    ``default``, ``tooltip``, ...) — the node's whole input contract lives there.
+    """
 
     def __init__(self, *args, **kwargs):
-        pass
+        self.args = args
+        self.kwargs = kwargs
+
+    def get(self, key, default=None):
+        return self.kwargs.get(key, default)
 
 
 class _Spec:
@@ -49,15 +57,15 @@ class _Spec:
 
     @staticmethod
     def Input(*args, **kwargs):
-        return _Port()
+        return _Port(*args, **kwargs)
 
     @staticmethod
     def Output(*args, **kwargs):
-        return _Port()
+        return _Port(*args, **kwargs)
 
     @staticmethod
     def TemplateNames(*args, **kwargs):
-        return _Port()
+        return _Port(*args, **kwargs)
 
 
 class _Schema:
@@ -77,6 +85,19 @@ class _ComfyExtension:
     """Real class: the extension subclasses it."""
 
 
+class _UploadType:
+    """``io.UploadType`` — the widget upload handle (file/image/audio/video).
+
+    The real V3 API exposes this enum; the node passes ``UploadType.model`` to a
+    Combo so the UI grows an upload button. Values mirror ComfyUI's own.
+    """
+
+    image = "image_upload"
+    audio = "audio_upload"
+    video = "video_upload"
+    model = "file_upload"
+
+
 class _IO(types.ModuleType):
     """``comfy_api.latest.io`` — only the names used at class-definition time."""
 
@@ -94,6 +115,7 @@ class _IO(types.ModuleType):
     Conditioning = _Spec
     Latent = _Spec
     Autogrow = _Spec
+    UploadType = _UploadType
 
 
 class _StubModule(types.ModuleType):

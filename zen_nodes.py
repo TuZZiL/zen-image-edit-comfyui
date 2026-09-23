@@ -418,6 +418,78 @@ def _condition(adapter, text, images, sizes, ref_latents, keep_vision):
     return [[cond[:, keep.to(cond.device)], extras]]
 
 
+# ---------------------------------------------------------------------------
+# Input pickers
+#
+# Typing an absolute path into a widget is a relic; ComfyUI's own loaders fill a
+# dropdown from `folder_paths` and offer an upload button. We do the same: scan
+# the registered model folders for the adapter, and the `text_encoders/` folders
+# for the encoder. Both helpers degrade to a single-entry list when ComfyUI is
+# absent (tests, plain Python), because a Combo must never be empty.
+# ---------------------------------------------------------------------------
+
+_ENCODER_DEFAULT_ID = "Qwen/Qwen3.5-0.8B"
+
+
+def _model_dirs() -> list[str]:
+    """Registered model directories, ComfyUI's own `models/` last-resort included."""
+    dirs: list[str] = []
+    try:
+        import folder_paths  # type: ignore
+    except Exception:
+        return dirs
+    for key in ("diffusion_models", "checkpoints"):
+        try:
+            dirs.extend(folder_paths.get_folder_paths(key) or [])
+        except Exception:
+            pass
+    try:
+        base = getattr(folder_paths, "models_dir", "")
+        if base:
+            dirs.append(base)
+    except Exception:
+        pass
+    seen: set[str] = set()
+    out: list[str] = []
+    for d in dirs:
+        if d and d not in seen:
+            seen.add(d)
+            out.append(d)
+    return out
+
+
+def adapter_options() -> list[str]:
+    """`.safetensors` names found in the model folders — the adapter dropdown."""
+    names: set[str] = set()
+    for d in _model_dirs():
+        try:
+            for f in os.listdir(d):
+                if f.endswith((".safetensors", ".sft")):
+                    names.add(f)
+        except OSError:
+            continue
+    return sorted(names) or [""]
+
+
+def encoder_options() -> list[str]:
+    """Folders under `models/text_encoders/`, plus the remote id we ship by default."""
+    names: set[str] = {_ENCODER_DEFAULT_ID}
+    for d in _model_dirs():
+        sub = os.path.join(d, "text_encoders")
+        try:
+            for f in os.listdir(sub):
+                if os.path.isdir(os.path.join(sub, f)):
+                    names.add(f)
+        except OSError:
+            continue
+    return sorted(names)
+
+
+def _upload_model():
+    """`io.UploadType.model` when this ComfyUI exposes it, else None (older builds)."""
+    return getattr(getattr(io, "UploadType", None), "model", None)
+
+
 class ZenImage21AdapterLoader(io.ComfyNode):
     @classmethod
     def define_schema(cls) -> io.Schema:
@@ -427,17 +499,19 @@ class ZenImage21AdapterLoader(io.ComfyNode):
                          "Adapter Loader (Qwen3.5-0.8B)",
             category="model/conditioning/qwen image",
             inputs=[
-                io.String.Input("model_folder", default="",
+                io.String.Input("model_folder", default="", optional=True,
                                 tooltip="Optional: a zen-image-edit checkout (text_encoder/, processor/, "
                                         "tokenizer/, transformer/). Leave empty to load the encoder by "
                                         "its Hugging Face id and pass `fusion_file`."),
-                io.String.Input("adapter_file", default="",
-                                tooltip="Path to adapter_v12.safetensors (0.6 GB, config in metadata). "
-                                        "Required when `model_folder` is empty. Use an ABSOLUTE path: "
-                                        "a relative one resolves against ComfyUI's working directory, "
-                                        "not against models/."),
-                io.String.Input("text_encoder", default="models/text_encoders/qwen3.5_0.8b",
-                                tooltip="Text encoder id or path, used when `model_folder` is empty."),
+                io.Combo.Input("adapter_file", options=adapter_options(), default="",
+                               upload=_upload_model(),
+                               tooltip="The adapter file (0.6 GB, config in metadata). Pick it from "
+                                       "the list, or use the upload button to add it — ComfyUI puts "
+                                       "uploads in models/. Required when `model_folder` is empty."),
+                io.Combo.Input("text_encoder", options=encoder_options(),
+                               default=_ENCODER_DEFAULT_ID,
+                               tooltip="Text encoder: a folder under models/text_encoders/ "
+                                       "(pick it from the list) or a Hugging Face repo id."),
                 io.Combo.Input("dtype", options=["bf16", "fp16"], default="bf16",
                                tooltip="Keep bf16 to match the DiT; fp16 reproduces the diffusers build."),
             ],

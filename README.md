@@ -56,10 +56,14 @@ themselves (API format, both verified end-to-end).
 
 | input | meaning |
 |---|---|
-| `adapter_file` | path to `adapter_v12.safetensors` (architecture, including the position-table width, is in its metadata) |
-| `text_encoder` | encoder id or path, default `Qwen/Qwen3.5-0.8B` |
+| `adapter_file` | **dropdown** of the `.safetensors` files in your `models/` folders, with an **upload button** for one that is not there yet (architecture, including the position-table width, is read from its metadata) |
+| `text_encoder` | **dropdown** of the folders under `models/text_encoders/`, plus the repo id `Qwen/Qwen3.5-0.8B` |
 | `model_folder` | optional: a zen-image-edit checkout, then the encoder and adapter come from there |
 | `dtype` | `bf16` (matches the DiT) or `fp16` (reproduces the diffusers build) |
+
+Both file inputs are pickers, not text boxes — typing absolute paths was how this
+node worked before, and it was the single most common setup failure. A string
+still arrives unharmed from an older workflow or from the API.
 
 **Zen Image Edit — Text Encode** — `adapter`, `prompt`, `negative_prompt`, `vae` (optional),
 `resolution`, `image_1 … image_16`. Outputs `positive`, `negative` and an empty `latent`.
