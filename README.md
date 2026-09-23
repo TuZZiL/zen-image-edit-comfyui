@@ -1,5 +1,7 @@
 # zen-image-edit for ComfyUI
 
+🇺🇦 [Українська версія →](README.uk.md)
+
 ComfyUI nodes that run **Qwen-Image-2.1** on a **Qwen3.5-0.8B** text encoder plus the
 [zen-image-edit](https://huggingface.co/AiArtLab/zen-image-edit) text adapter, instead of the native
 17.5 GB Qwen3-VL-8B. One node covers text-to-image and editing (up to 16 reference images); the DiT,
@@ -100,13 +102,13 @@ plain static shift of **5.0**, which the model's author found clearly better —
 Each message below replaces a raw exception that named neither the cause nor the fix. Every one of
 them was hit on a stock install (ComfyUI 0.37.0, RTX 3060, Windows) while setting this node up.
 
-### `adapter file not found: 'adapter_v11.safetensors'`
+### `adapter file not found: 'adapter_v12.safetensors'`
 
 `adapter_file` is resolved **against ComfyUI's working directory**, not against `models/`, so a
 relative value is the usual cause. Pass an absolute path:
 
 ```
-<ComfyUI>/models/adapter_v11.safetensors
+<ComfyUI>/models/adapter_v12.safetensors
 ```
 
 The loader now also searches ComfyUI's registered model folders (`folder_paths`) before giving up,

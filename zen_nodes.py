@@ -241,8 +241,8 @@ def _load_fusion(source):
             raise FileNotFoundError(
                 f"adapter file not found: '{source}'\n"
                 f"resolved to: {tried}\n"
-                "`adapter_file` must point at the adapter_v11.safetensors file "
-                "(0.6 GB, from the zen-image-edit release assets). Put it in "
+                "`adapter_file` must point at the adapter_v12.safetensors file "
+                "(0.64 GB, from the zen-image-edit release assets). Put it in "
                 "<ComfyUI>/models/ and pass the ABSOLUTE path to it." + hint
             )
         try:
@@ -254,7 +254,7 @@ def _load_fusion(source):
             raise ValueError(
                 f"adapter file '{resolved}' could not be read as a safetensors "
                 f"adapter: {type(exc).__name__}: {exc}\n"
-                "Expected the adapter_v11.safetensors release asset (its config "
+                "Expected the adapter_v12.safetensors release asset (its config "
                 "lives in the safetensors metadata)."
             ) from exc
         prefix = ""
