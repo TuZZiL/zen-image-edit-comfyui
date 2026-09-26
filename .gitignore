@@ -1,3 +1,6 @@
 __pycache__/
 *.pyc
 .venv*/
+
+# per-checkout node id suffix: one name per clone, never shared (see README)
+.zen_node_suffix

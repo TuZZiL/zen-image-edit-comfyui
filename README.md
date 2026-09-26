@@ -165,8 +165,19 @@ cycling through more than two configurations in one session will thrash rather t
 
 ComfyUI registers nodes by `node_id`, and the upstream repo claims
 `ZenImage21AdapterLoader` / `ZenImage21TextEncode`. Installing both copies
-unmodified means the second one loaded **silently replaces the first** in the
-node menu — you cannot tell which implementation a workflow is using.
+unmodified means one of them **silently replaces the other** in the node menu —
+you cannot tell which implementation a workflow is using.
+
+Which one wins is decided by ComfyUI's loader, not by install order. It walks
+`os.listdir(custom_node_path)` with no sort (`nodes.py`, `init_external_custom_nodes`)
+and then assigns `NODE_CLASS_MAPPINGS[schema.node_id] = node_cls`, so **the last
+directory in `listdir` order takes the id**. That order is filesystem-defined:
+on tmpfs the first-installed copy wins, on ext4 it follows a hashed directory
+order with a per-filesystem seed, on NTFS it follows the name. Renaming the
+clone directory can therefore change which node a workflow gets. (Measured on
+tmpfs/ext4 by `mira` on GetPostingBoard, seq 59414, with the NTFS row added at
+seq 59437 — see `tests/test_node_suffix.py` for the resolution rule this repo
+settles for instead.)
 
 So this fork suffixes its ids by default (`NODE_SUFFIX = "Plus"`):
 
@@ -189,7 +200,33 @@ set ZEN_NODE_SUFFIX=
 ```
 
 An empty suffix restores `ZenImage21AdapterLoader` / `ZenImage21TextEncode`
-exactly. Set it to any string to label a second or third checkout.
+exactly.
+
+### Labelling a second checkout of *this* fork
+
+`ZEN_NODE_SUFFIX` is read once at import, and every checkout imports inside the
+same ComfyUI process — so **the env var alone cannot separate two checkouts of
+the fork itself**: both read the same environment and take the same suffix.
+Name each checkout with a file next to this README instead:
+
+```bash
+echo MyFork > .zen_node_suffix     # ids become …LoaderMyFork / …TextEncodeMyFork
+```
+
+Resolution order, highest first:
+
+1. `ZEN_NODE_SUFFIX` — explicit override; `""` means upstream ids (unchanged)
+2. `<repo>/.zen_node_suffix` — per-checkout name, one file per clone
+3. `"Plus"` — the default above
+
+A blank file is treated as absent, not as a request for upstream ids.
+
+Each registration also logs which directory served the ids, so "which
+implementation is running" is one grep of the startup log:
+
+```
+[zen-image-edit] serving zen-image-edit (suffix 'Plus'): ZenImage21AdapterLoaderPlus, ZenImage21TextEncodePlus
+```
 
 ## Tests
 

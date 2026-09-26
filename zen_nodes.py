@@ -30,10 +30,58 @@ import fusion_lib
 # This fork ships suffixed node ids so it can be installed next to the upstream
 # `zen-image-edit-comfyui` in the same ComfyUI: node ids are the dictionary keys
 # ComfyUI registers on, and two customs nodes claiming the same key collide —
-# the second one silently replaces the first in the node menu.
-# Set ZEN_NODE_SUFFIX="" to get the upstream ids back (required if you only run
-# this copy, or when preparing an upstream pull request).
-NODE_SUFFIX = os.environ.get("ZEN_NODE_SUFFIX", "Plus")
+# the second one silently replaces the first in the node menu. (ComfyUI's loader
+# never sorts `os.listdir`, so "the second one" depends on the filesystem, not
+# on install order — see tests/test_node_suffix.py.)
+#
+# An env var alone cannot separate two checkouts of *this* fork: NODE_SUFFIX is
+# read once at import, and every checkout imports inside the same ComfyUI
+# process, so both would read the same `os.environ` and both would take the same
+# suffix — the README promise ("set it to any string to label a second or third
+# checkout") would not hold for a second copy of the fork itself. Hence a
+# per-checkout file. Resolution order:
+#
+#   1. ZEN_NODE_SUFFIX="..."     explicit override ("" = upstream ids, as before)
+#   2. <repo>/.zen_node_suffix   per-checkout name, so two forks stop colliding
+#   3. "Plus"                    the historical default
+_CHECKOUT_SUFFIX_FILE = ".zen_node_suffix"
+_DEFAULT_NODE_SUFFIX = "Plus"
+
+
+def resolve_node_suffix(environ, repo_dir):
+    """Pick this checkout's id suffix.
+
+    `environ` and `repo_dir` are arguments rather than globals so the rule is
+    testable without reloading this module; `NODE_SUFFIX` below is simply this
+    function applied to the live environment.
+
+    An empty env value is meaningful (it asks for upstream ids), so the check is
+    on presence, not truthiness. A blank *file* is an editor accident, not a
+    request, and falls through to the default.
+    """
+    if "ZEN_NODE_SUFFIX" in environ:
+        return environ["ZEN_NODE_SUFFIX"]
+    try:
+        with open(os.path.join(repo_dir, _CHECKOUT_SUFFIX_FILE), encoding="utf-8") as fh:
+            name = fh.read().strip()
+    except OSError:
+        return _DEFAULT_NODE_SUFFIX
+    return name or _DEFAULT_NODE_SUFFIX
+
+
+NODE_SUFFIX = resolve_node_suffix(os.environ, os.path.dirname(os.path.abspath(__file__)))
+
+
+def registration_log_line(node_ids, repo_dir=None):
+    """One startup line that answers "which checkout is serving these ids?".
+
+    Two checkouts used to collide silently; now that their ids cannot collide,
+    the remaining question is which directory ComfyUI actually loaded. Answering
+    it from the log costs nothing and turns a filesystem experiment into a grep.
+    """
+    here = repo_dir or os.path.dirname(os.path.abspath(__file__))
+    return (f"[zen-image-edit] serving {os.path.basename(here)} "
+            f"(suffix {NODE_SUFFIX!r}): {', '.join(node_ids)}")
 
 VISION_BLOCK = "<|vision_start|><|image_pad|><|vision_end|>"
 SYSTEM_PROMPT = "<|im_start|>system\nComprehend and analyze the provided prompt.<|im_end|>\n"
@@ -622,7 +670,9 @@ def _to_pil(rgb):
 class ZenImageEditExtension(ComfyExtension):
     @override
     async def get_node_list(cls) -> list[type[io.ComfyNode]]:
-        return [ZenImage21AdapterLoader, ZenImage21TextEncode]
+        nodes = [ZenImage21AdapterLoader, ZenImage21TextEncode]
+        print(registration_log_line([cls.define_schema().node_id for cls in nodes]))
+        return nodes
 
 
 async def comfy_entrypoint() -> ZenImageEditExtension:
